@@ -1,0 +1,321 @@
+package com.example.calculator
+
+import android.os.Bundle
+import android.view.View
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import android.app.AlertDialog
+import android.content.Context
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var inputFullTextView : TextView
+    private lateinit var currentAndResultTextView : TextView
+
+    private var operand1 = 0.0
+    private var operand2 = 0.0
+    private var operator : Char = ' '
+    private var result : Double = 0.0
+
+    private var inputFullString : String = ""
+    private var currentInput : String = ""
+    private var isCalculationPerformed: Boolean = false
+
+    private var operators : Array<Char> = arrayOf('+', '-', '*', '/')
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        inputFullTextView = findViewById<TextView>(R.id.inputFullTextView)
+        currentAndResultTextView = findViewById<TextView>(R.id.currentAndResultTextView)
+
+        showPopupMessage(this, "CPW 253 - Simple Calculator.\n" +
+                                                "Please give me some feedback.\n" +
+                                                "Thank you!\n" +
+                                                "Tung Kim")
+    }
+
+
+
+    /**
+     * When a button clicked
+     */
+    fun numberOnClick(view: View) {
+        var number = (view as TextView).text.toString()
+
+        if (isCalculationPerformed) {
+            reset()
+            isCalculationPerformed = false
+        }
+
+        // if user clicks "." first
+        if ( number == ".") {
+            // Checks if the current input already contains a dot
+            if (!currentInput.contains(".")) {
+                // Checks if current input is empty, automatically add "0" before "."
+                if (currentInput.isEmpty()) {
+                    currentInput = "0" + number
+                }
+                else{
+                    currentInput += number
+                }
+            }
+        }
+        // if user click a digit
+        else {
+                currentInput += number
+        }
+        // Displays to expressionTextView and resultTextView
+        currentAndResultTextView.text = currentInput
+        inputFullString += number
+        inputFullTextView.text = inputFullString
+    }
+
+    /**
+     * When an operator button clicked
+     */
+    fun operatorOnClick(view: View) {
+        var newOperator = (view as TextView).text[0]
+
+        // When user clicks on an operator before any number, by mistake
+        if (inputFullString.isEmpty() && newOperator != '-') {
+            return
+        }
+
+        // when equation not yet calculated
+        if (!isCalculationPerformed) {
+            // Checks if "-" is negative sign
+            if (newOperator == '-' && currentInput.isEmpty() && inputFullString.isEmpty()) {
+                // Handles negative sign
+                currentInput = "-"
+                currentAndResultTextView.text = currentInput
+                inputFullString = "-"
+                inputFullTextView.text = inputFullString
+            }
+            else {
+                // when an operator has not been selected
+                if (operator == ' ') {
+                    operator = newOperator
+                    inputFullString += " " + newOperator + " "
+                    inputFullTextView.text = inputFullString
+                    operand1 = currentInput.trim().toDouble()
+
+                    currentInput = ""
+                    currentAndResultTextView.text = currentInput
+                }
+                // when an operator has been selected, user clicks on another operator to swap
+                else {
+                    var operatorIndex = inputFullString.lastIndexOf(operator)
+
+                    // Replace the current operator with the new operator
+                    inputFullString = inputFullString.substring(0, operatorIndex) + newOperator + inputFullString.substring(operatorIndex + 1)
+                    inputFullTextView.text = inputFullString
+                    operator = newOperator
+                }
+            }
+        }
+        // when user wants to do another equation instantly using the previous result as operand1
+        else {
+            operator = newOperator
+            isCalculationPerformed = false
+            operand1 = result
+            inputFullString = formatResult(result).format("%.5f") + " " + newOperator + " "
+            inputFullTextView.text = inputFullString
+            currentInput = ""
+            currentAndResultTextView.text = currentInput
+        }
+    }
+
+    /**
+     * When "=" button clicked
+     */
+    fun equalOnClick(view: View?) {
+        calculate()
+    }
+
+    /**
+     * Performs the Calculation and displays the result
+     */
+    private fun calculate() {
+        // when an operator selected
+        if (!isCalculationPerformed) {
+            if (currentInput.isNotEmpty()) {
+                operand2 = currentInput.toDouble()
+
+            }
+            else {
+                operand2 = 0.0
+                inputFullString += "0"
+            }
+
+            result = doTheMath()
+            inputFullString += " ="
+        }
+
+        // Displays Result
+        inputFullTextView.text = inputFullString
+        currentAndResultTextView.text = formatResult(result)
+    }
+
+    /**
+     * Formats and Displays Result
+     * Removes .0 if it is an integer
+     */
+    private fun formatResult(result : Double) : String {
+        var resultString : String
+        if (result % 1 == 0.0) {
+            resultString = result.toInt().toString()
+        } else {
+            resultString = result.toString()
+        }
+        return resultString
+    }
+
+    /**
+     * Executes the equation
+     */
+    private fun doTheMath(): Double {
+        if (operator == '+') {
+            result = operand1 + operand2
+        }
+        else if (operator == '-') {
+            result = operand1 - operand2
+        }
+        else if (operator == '*') {
+            result = operand1 * operand2
+        }
+        // operator = '/'
+        else {
+            if (operand2 != 0.0) {
+                result = operand1 / operand2
+            }
+            else {
+                result = Double.NaN
+            }
+        }
+        operator = ' '
+        isCalculationPerformed = true
+        return result
+    }
+
+    /**
+     * When Clear button clicked
+     */
+    fun clearOnClick(view: View) {
+        reset()
+    }
+
+    /**
+     * Resets the calculator
+     */
+    private fun reset() {
+        inputFullString = ""
+        inputFullTextView.text = inputFullString
+        currentInput = ""
+        currentAndResultTextView.text = currentInput
+        operand1 = 0.0
+        operand2 = 0.0
+        operator = ' '
+        result = 0.0
+        isCalculationPerformed = false
+    }
+
+    /**
+     * Finds the operation index by lastIndex, avoid conflict with negative sign
+     */
+    private fun findOperatorIndex(str : String) : Int {
+        var lastIndex = -1
+        for (i in str.length downTo  0) {
+            for (j in 0 until operators.size)
+                if (str[i] == operators[j]) {
+                    lastIndex = i
+                    break
+                }
+        }
+        return lastIndex
+    }
+
+    /**
+     * Shows Popup Message - Welcome message
+     */
+    fun showPopupMessage(context: Context, message: String) {
+        val builder = AlertDialog.Builder(context)
+        builder.setMessage(message)
+        builder.setPositiveButton("OK. Let's bounce!") { dialog, _ ->
+            dialog.dismiss()
+        }
+        val dialog = builder.create()
+        dialog.show()
+    }
+
+    /*
+    fun concatenateInput(input : String) {
+        inputString += input
+        inputTextView.text = inputString
+    }
+
+    fun divideOnClick(view: View) {
+        concatenateInput("/")
+    }
+
+    fun multipleOnClick(view: View) {
+        concatenateInput("*")
+    }
+
+    fun sevenOnClick(view: View) {
+        concatenateInput("7")
+    }
+
+    fun eightOnClick(view: View) {
+        concatenateInput("8")
+    }
+
+    fun nineOnClick(view: View) {
+        concatenateInput("9")
+    }
+
+    fun fourOnClick(view: View) {
+        concatenateInput("4")
+    }
+
+    fun fiveOnClick(view: View) {
+        concatenateInput("5")
+    }
+
+    fun sixOnClick(view: View) {
+        concatenateInput("6")
+    }
+
+    fun oneOnClick(view: View) {
+        concatenateInput("1")
+    }
+
+    fun twoOnClick(view: View) {
+        concatenateInput("2")
+    }
+
+    fun threeOnClick(view: View) {
+        concatenateInput("3")
+    }
+
+    fun zeroOnClick(view: View) {
+        concatenateInput("0")
+    }
+
+    fun dotOnClick(view: View) {
+        concatenateInput(".")
+    }
+
+    fun minusOnClick(view: View) {
+        concatenateInput("-")
+    }
+
+    fun plusOnClick(view: View) {
+        concatenateInput("+")
+    }
+
+    fun equalOnClick(view: View) {
+
+    }
+    */
+}
